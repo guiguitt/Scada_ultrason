@@ -8,13 +8,29 @@
 #define LED_WIFI_ON 1
 #define LED_SCADA_FAIL 2
 
+#define serial 0
+#define network 1
 bool sent;
 
 HCSR04 hcsr04(TRIG_PIN, ECHO_PIN, 20, 4000);
 
+float AverMeas(int num, int timing) {
+  float dis = 0;
+  for (int i = 0; i < num; i++) {
+    double duration = hcsr04.echoInMicroseconds();
+    dis += (duration / 2) * 0.344;
+    delay(timing);
+  }
+  return dis / num;
+}
+
 void setup() {
+
   Serial.begin(9600);
+#if serial
   while (!Serial) {}
+#endif
+
   pinMode(LED_ON, OUTPUT);
   pinMode(LED_WIFI_ON, OUTPUT);
   pinMode(LED_SCADA_FAIL, OUTPUT);
@@ -25,22 +41,15 @@ void setup() {
 }
 
 void loop() {
-
+  float distance = AverMeas(200, 100);
+#if serial
   Serial.print("Distance : ");
-  double distance = 0;
-  for (int i = 0; i < 10; i++) {
-    delay(90);
-    double duration = hcsr04.echoInMicroseconds();
-    distance += (duration / 2) * 0.344;
-  }
-  distance = distance / 10;
-
   Serial.print(distance);
-  //Serial.print(hcsr04.distanceInMillimeters());
-  Serial.print(" mm");
-  Serial.println();
+  Serial.println(" mm");
+#endif
 
   // Sending data
+#if network
   if (!wifiConnected()) {
     digitalWrite(LED_WIFI_ON, LOW);
     wifiConnect(WIFI_SSID, WIFI_PASSWORD);
@@ -52,9 +61,10 @@ void loop() {
   digitalWrite(LED_WIFI_ON, HIGH);
 
   if (!sent) {
-    NVIC_SystemReset();
-    digitalWrite(LED_SCADA_FAIL, LOW);
+    //NVIC_SystemReset();
+    digitalWrite(LED_SCADA_FAIL, HIGH);
   }
+#endif
 
   delay(1000);
 }
